@@ -2,7 +2,6 @@ import pandas as pd
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import train_test_split
-from torch.utils.data import random_split, DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -29,7 +28,7 @@ def plot_dataset():
 
 def show_graph():
     writer = SummaryWriter()
-    writer.add_graph(model, torch.tensor(train_dataset).float())
+    writer.add_graph(model, train_dataset.float())
     writer.close()
 
 
@@ -43,16 +42,22 @@ if __name__ == '__main__':
     test_dataset, validation_dataset = train_test_split(test_dataset, test_size=0.33)
 
     train_dataset, test_dataset, validation_dataset = train_dataset.to_numpy(), test_dataset.to_numpy(), validation_dataset.to_numpy()
-    train_dataset, train_target = train_dataset[:, :7], train_dataset[:, 7]
-    test_dataset, test_target = test_dataset[:, :7], test_dataset[:, 7]
-    validation_dataset, validation_target = validation_dataset[:, :7], validation_dataset[:, 7]
+    print(type(train_dataset[0, 0]))
+    train_dataset, train_target = torch.tensor(train_dataset[:, :7]), torch.tensor(train_dataset[:, 7])
+    test_dataset, test_target = torch.tensor(test_dataset[:, :7]), torch.tensor(test_dataset[:, 7])
+    validation_dataset, validation_target = torch.tensor(validation_dataset[:, :7]), torch.tensor(
+        validation_dataset[:, 7])
 
     # Q1 plotting the dataset
     # plot_dataset()
 
     # Build a Neural Network model
-    model = NeuralNetwork()
+    model = NeuralNetwork().double()
 
     # Show graph
     # show_graph()
 
+    model.train_model(train_dataset, train_target, 10)
+
+    acc = model.evaluate_model(validation_dataset, validation_target)
+    print('Accuracy: %.3f' % acc)
