@@ -9,11 +9,15 @@ class NeuralNetwork(nn.Module):
     def __init__(self):
         super(NeuralNetwork, self).__init__()
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(7, 5),
+            nn.Linear(7, 6),
             nn.ReLU(),
-            nn.Linear(5, 5),
+            nn.Linear(6, 5),
             nn.ReLU(),
-            nn.Linear(5, 3),
+            nn.Linear(5, 4),
+            nn.ReLU(),
+            # nn.Dropout(p=0.2),
+            nn.Linear(4, 3),
+            nn.Softmax(dim=1)
         )
 
     def forward(self, x):
@@ -25,7 +29,7 @@ class NeuralNetwork(nn.Module):
         # define the optimization
         self.train()
         criterion = CrossEntropyLoss().double()
-        optimizer = SGD(self.parameters(), lr=0.01, momentum=0.9)
+        optimizer = SGD(self.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-5)
         targets -= 1
         # enumerate epochs
         for epoch in range(epochs):
@@ -51,4 +55,5 @@ class NeuralNetwork(nn.Module):
         yhat = argmax(yhat, axis=1)
         # calculate accuracy
         acc = accuracy_score(targets, yhat)
+
         return acc
