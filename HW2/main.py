@@ -7,7 +7,7 @@ X, y = fetch_rcv1(shuffle=True, return_X_y=True)
 
 
 class SOM:
-    def __init__(self, map_size, lr=0.0001):
+    def __init__(self, map_size, lr=0.1):
         """
         :param map_size: [map_w, map_h, f]
         """
@@ -17,6 +17,8 @@ class SOM:
 
         self.R0 = map_size[0] // 2
         self.R = self.R0
+
+        self.scores = np.zeros(shape=(self.map.shape[0], self.map.shape[1], 3))
 
     def find_winner(self, x):
         repeated_x = np.tile(x, [self.map.shape[0], self.map.shape[1], 1])
@@ -35,7 +37,7 @@ class SOM:
 
         for r in range(1, int(self.R)):
             if iw - r >= 0:
-                NS[iw - r, jw] = 1 / r   # NS for winner should be one and for it's nearest neighbor should be 1/2
+                NS[iw - r, jw] = 1 / r
             if iw + r < self.map.shape[0]:
                 NS[iw + r, jw] = 1 / r
 
@@ -50,7 +52,7 @@ class SOM:
         NS = np.tile(n_strength, [self.map.shape[2], 1, 1]).transpose()  # ERROR
 
         repeated_x = np.tile(x, [self.map.shape[0], self.map.shape[1], 1])
-        Delta = self.map - repeated_x
+        Delta = repeated_x - self.map
 
         self.map += self.lr * np.multiply(NS, Delta)
 
@@ -79,11 +81,49 @@ class SOM:
 
         return Js
 
+    def visualize(self, X, y):
+        for i, (x, label) in enumerate(zip(X, y)):
+            x = x.toarray()
+            winner = self.find_winner(x)
+            iw, jw = winner[0], winner[1]
+            c = np.unravel_index(np.argmax(label), label.shape)[1]
 
-X_small = X[:1000]
+            if c < 34:
+                self.scores[iw, jw] += np.asarray([1, 0, 0])
+            if 34 <= c < 68:
+                self.scores[iw, jw] += np.asarray([0, 0, 1])
+            if 68 <= c:
+                self.scores[iw, jw] += np.asarray([0, 1, 0])
+
+        plt.imshow(self.scores)
+        plt.show()
+
+    def purity(self, X, y):
+        map = np.zeros((9, 9, 103))
+        for i, (x, label) in enumerate(zip(X, y)):
+            x = x.toarray()
+            winner = self.find_winner(x)
+            iw, jw = winner[0], winner[1]
+            c = np.unravel_index(np.argmax(label), label.shape)[1]
+            map[iw, jw, c] += 1
+
+        sigma = 0
+        for i in range(9):
+            for j in range(9):
+                tmp = np.unravel_index(np.argmax(map[i, j]), map[i, j].shape)
+                sigma += map[i, j, tmp]
+
+        p = sigma / X.shape[0]
+        return p
+
+
+X_small, y_small = X[:200], y[:200]
 
 som_net = SOM(map_size=[9, 9, X_small.shape[1]])
-Js = som_net.train(X_small, epochs=10)
+Js = som_net.train(X_small, epochs=4)
 
 plt.plot(Js)
 plt.show()
+
+som_net.visualize(X_small, y_small)
+print(som_net.purity(X_small, y_small))
