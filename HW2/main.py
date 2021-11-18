@@ -1,7 +1,8 @@
 from sklearn.datasets import fetch_rcv1
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.sparse import csr_matrix
+from sklearn.decomposition import TruncatedSVD
+from sklearn.model_selection import train_test_split
 
 X, y = fetch_rcv1(shuffle=True, return_X_y=True)
 
@@ -37,14 +38,14 @@ class SOM:
 
         for r in range(1, int(self.R)):
             if iw - r >= 0:
-                NS[iw - r, jw] = 1 / r
+                NS[iw - r, jw] = 1 / (1 + r)
             if iw + r < self.map.shape[0]:
-                NS[iw + r, jw] = 1 / r
+                NS[iw + r, jw] = 1 / (1 + r)
 
             if jw - r >= 0:
-                NS[iw, jw - r] = 1 / r
+                NS[iw, jw - r] = 1 / (1 + r)
             if jw + r < self.map.shape[1]:
-                NS[iw, jw + r] = 1 / r
+                NS[iw, jw + r] = 1 / (1 + r)
 
         return NS
 
@@ -62,7 +63,7 @@ class SOM:
             prev_map = np.copy(self.map)
             for row in range(X.shape[0]):
                 x = X[row, :]
-                x = x.toarray()
+                # x = x.toarray()
                 winner = self.find_winner(x)  # winner = [5, 23]
                 neighbors = self.get_NS(winner)
                 self.update_weights(x, neighbors)
@@ -83,47 +84,57 @@ class SOM:
 
     def visualize(self, X, y):
         for i, (x, label) in enumerate(zip(X, y)):
-            x = x.toarray()
+            # x = x.toarray()
             winner = self.find_winner(x)
             iw, jw = winner[0], winner[1]
-            c = np.unravel_index(np.argmax(label), label.shape)[1]
 
-            if c < 34:
-                self.scores[iw, jw] += np.asarray([1, 0, 0])
-            if 34 <= c < 68:
-                self.scores[iw, jw] += np.asarray([0, 0, 1])
-            if 68 <= c:
-                self.scores[iw, jw] += np.asarray([0, 1, 0])
+            # self.scores[iw, jw] += label.toarray()[0]
+            self.scores[iw, jw] += label
+
+        for i in range(self.map.shape[0]):
+            for j in range(self.map.shape[1]):
+                norm = np.linalg.norm(self.scores[i, j])
+                if norm == 0:
+                    continue
+                self.scores[i, j] = self.scores[i, j] / norm
 
         plt.imshow(self.scores)
         plt.show()
 
     def purity(self, X, y):
-        map = np.zeros((9, 9, 103))
+        map = np.zeros(shape=(self.map.shape[0], self.map.shape[1], y.shape[1]))
         for i, (x, label) in enumerate(zip(X, y)):
-            x = x.toarray()
+            # x = x.toarray()
             winner = self.find_winner(x)
             iw, jw = winner[0], winner[1]
-            c = np.unravel_index(np.argmax(label), label.shape)[1]
+            c = np.unravel_index(np.argmax(label), label.shape)
             map[iw, jw, c] += 1
 
         sigma = 0
-        for i in range(9):
-            for j in range(9):
-                tmp = np.unravel_index(np.argmax(map[i, j]), map[i, j].shape)
-                sigma += map[i, j, tmp]
+        for i in range(self.map.shape[0]):
+            for j in range(self.map.shape[1]):
+                sigma += map[i, j].max()
 
         p = sigma / X.shape[0]
         return p
 
 
-X_small, y_small = X[:200], y[:200]
+_, X_small, _, y_small = train_test_split(X, y, test_size=0.001, random_state=42)
 
-som_net = SOM(map_size=[9, 9, X_small.shape[1]])
-Js = som_net.train(X_small, epochs=4)
+svd = TruncatedSVD(n_components=10, n_iter=7, random_state=42)
+X_new = svd.fit_transform(X_small)
+svd = TruncatedSVD(n_components=3, n_iter=5, random_state=42)
+y_new = svd.fit_transform(y_small)
+y_new += abs(y_new.min())
+# print(svd.explained_variance_ratio_)
+# print(svd.explained_variance_ratio_.sum())
+# print(svd.singular_values_)
+
+som_net = SOM(map_size=[10, 10, X_new.shape[1]])
+Js = som_net.train(X_new, epochs=5)
 
 plt.plot(Js)
 plt.show()
 
-som_net.visualize(X_small, y_small)
-print(som_net.purity(X_small, y_small))
+som_net.visualize(X_new, y_new)
+som_net.purity(X_new, y_new)
