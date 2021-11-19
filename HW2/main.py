@@ -8,7 +8,7 @@ X, y = fetch_rcv1(shuffle=True, return_X_y=True)
 
 
 class SOM:
-    def __init__(self, map_size, lr=0.1):
+    def __init__(self, map_size, lr=0.2):
         """
         :param map_size: [map_w, map_h, f]
         """
@@ -16,11 +16,12 @@ class SOM:
         self.lr0 = lr
         self.lr = lr
 
-        self.R0 = map_size[0] // 2
+        self.R0 = map_size[0]  # initial R is the half of the width of the map
         self.R = self.R0
 
-        self.scores = np.zeros(shape=(self.map.shape[0], self.map.shape[1], 3))
+        self.scores = np.zeros(shape=(self.map.shape[0], self.map.shape[1], 3))  # scores is used for visualization
 
+    # returns the index of the winner neuron like (3, 4)
     def find_winner(self, x):
         repeated_x = np.tile(x, [self.map.shape[0], self.map.shape[1], 1])
         dists = np.sum((self.map - repeated_x) ** 2, axis=2)
@@ -29,6 +30,7 @@ class SOM:
 
         return winner
 
+    # returns a weight for each neuron based on how close it is to the winner. The closer the bigger
     def get_NS(self, winner):
         NS = np.zeros(shape=(self.map.shape[0], self.map.shape[1]))
 
@@ -73,7 +75,6 @@ class SOM:
 
             Js.append(np.linalg.norm(prev_map - self.map))
 
-            #             if epoch % 100 == 0:
             print("Iteration: %d, LR: %f, R: %f, J: %f" % (epoch, self.lr, self.R, Js[-1]))
 
             if Js[-1] < error_threshold:
@@ -119,22 +120,26 @@ class SOM:
         return p
 
 
-_, X_small, _, y_small = train_test_split(X, y, test_size=0.001, random_state=42)
+# _, X, _, y = train_test_split(X, y, test_size=0.1, random_state=42)
 
-svd = TruncatedSVD(n_components=10, n_iter=7, random_state=42)
-X_new = svd.fit_transform(X_small)
+svd = TruncatedSVD(n_components=20, n_iter=7, random_state=42)
+X_new = svd.fit_transform(X)
+
 svd = TruncatedSVD(n_components=3, n_iter=5, random_state=42)
-y_new = svd.fit_transform(y_small)
+y_new = svd.fit_transform(y)
 y_new += abs(y_new.min())
+
 # print(svd.explained_variance_ratio_)
 # print(svd.explained_variance_ratio_.sum())
 # print(svd.singular_values_)
 
-som_net = SOM(map_size=[10, 10, X_new.shape[1]])
-Js = som_net.train(X_new, epochs=5)
+som_net = SOM(map_size=[12, 12, X_new.shape[1]])
+Js = som_net.train(X_new, epochs=6)
 
 plt.plot(Js)
 plt.show()
 
 som_net.visualize(X_new, y_new)
-som_net.purity(X_new, y_new)
+
+p = som_net.purity(X_new, y_new)
+print("purity = ", p)
