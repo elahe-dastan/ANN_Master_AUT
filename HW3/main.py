@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+from sklearn.model_selection import train_test_split
 
 names = ["mpg", "cylinders", "displacement", "horsepower", "weight", "acceleration", "model year", "origin", "car_name"]
 data = pd.read_csv('auto-mpg.data', sep="\s+", names=names)
@@ -39,6 +40,9 @@ X.loc[unknown_X.index, 'horsepower'] = unknown_X['horsepower']
 X.info()
 
 X = X.astype(float)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
 
 # for name in X.columns:
 #     plt.scatter(y, np.int64(X[name]))
@@ -91,7 +95,7 @@ class RBFNet(object):
                 phi = np.array([self.rbf(np.array(X)[i], c, s) for c, s, in zip(self.centers, self.stds)])
                 F = phi.T.dot(self.w) + self.b
                 loss = (y[i] - F).flatten() ** 2
-                # print(loss)
+                print(loss)
                 # print('Loss: {0:.2f}'.format(loss[0]))
                 # backward pass
                 error = -(y[i] - F).flatten()
@@ -112,8 +116,8 @@ class RBFNet(object):
 # sample inputs and add noise
 
 rbfnet = RBFNet(lr=1e-2, k=3, epochs=10, inferStds=False)
-rbfnet.fit(X, y)
-y_pred = rbfnet.predict(X)
+rbfnet.fit(X_train.to_numpy(), y_train.to_numpy())
+y_pred = rbfnet.predict(X_train.to_numpy())
 
 for a, b in zip(y, y_pred):
     print('y: {0:.2f} , y_pred: {0:.2f}'.format(a, b))
